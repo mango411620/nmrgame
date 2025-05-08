@@ -1,0 +1,247 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Deuterated Solvent Match</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      background: #f2f2f2;
+    }
+    h1 {
+      margin-top: 20px;
+    }
+    #game-board {
+      width: 600px;
+      margin: 20px auto;
+      display: grid;
+      grid-template-columns: repeat(4, 130px);
+      gap: 10px;
+    }
+    .card {
+      width: 120px;
+      height: 120px;
+      perspective: 1000px;
+      cursor: pointer;
+    }
+    .card-inner {
+      width: 100%;
+      height: 100%;
+      transition: transform 0.6s;
+      transform-style: preserve-3d;
+      position: relative;
+    }
+    .card.revealed .card-inner {
+      transform: rotateY(180deg);
+    }
+    .card-face {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backface-visibility: hidden;
+      font-size: 18px;
+      font-weight: bold;
+      color: white;
+    }
+    .card-front {
+      background: #888;
+    }
+    .card-back {
+      transform: rotateY(180deg);
+    }
+    .matched .card-inner {
+      box-shadow: 0 0 20px 4px gold;
+      animation: glow 1s ease-in-out infinite alternate;
+    }
+    @keyframes glow {
+      from {
+        box-shadow: 0 0 10px 2px gold;
+      }
+      to {
+        box-shadow: 0 0 20px 6px gold;
+      }
+    }
+    #message, #countdown {
+      margin-top: 20px;
+      font-size: 20px;
+      color: #333;
+    }
+    #timer {
+      margin-top: 10px;
+      font-size: 18px;
+      color: #444;
+    }
+    #start-button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h1>Deuterated Solvent Match</h1>
+  <div id="countdown"></div>
+  <div id="timer">⌛ Time: 30</div>
+  <button id="start-button">Start Game</button>
+  <div id="game-board"></div>
+  <div id="message"></div>
+
+  <script>
+    const solvents = [
+      "CDCl₃", "DMSO-d₆", "Acetone-d₆", "CD₃OD",
+      "C₆D₆", "D₂O", "Toluene-d₈", "THF-d₈"
+    ];
+
+    const solventColors = {
+      "CDCl₃": "#e57373",
+      "DMSO-d₆": "#64b5f6",
+      "Acetone-d₆": "#81c784",
+      "CD₃OD": "#ffd54f",
+      "C₆D₆": "#ba68c8",
+      "D₂O": "#4dd0e1",
+      "Toluene-d₈": "#ff8a65",
+      "THF-d₈": "#a1887f"
+    };
+
+    let cards = [];
+    let firstCard = null;
+    let lock = true;
+    let matchesFound = 0;
+    let timeLeft = 30;
+    let timerInterval = null;
+    let countdownInterval = null;
+
+    function shuffle(array) {
+      return array.sort(() => Math.random() - 0.5);
+    }
+
+    function createCards() {
+      const doubled = [...solvents, ...solvents];
+      cards = shuffle(doubled);
+      const board = document.getElementById("game-board");
+      board.innerHTML = "";
+      cards.forEach((solvent, index) => {
+        const card = document.createElement("div");
+        card.classList.add("card", "revealed");
+        card.dataset.index = index;
+        card.dataset.solvent = solvent;
+
+        const inner = document.createElement("div");
+        inner.classList.add("card-inner");
+
+        const front = document.createElement("div");
+        front.classList.add("card-face", "card-front");
+
+        const back = document.createElement("div");
+        back.classList.add("card-face", "card-back");
+        back.style.backgroundColor = solventColors[solvent];
+        back.innerText = solvent;
+
+        inner.appendChild(front);
+        inner.appendChild(back);
+        card.appendChild(inner);
+        board.appendChild(card);
+      });
+    }
+
+    function hideCards() {
+      document.querySelectorAll(".card").forEach(card => {
+        card.classList.remove("revealed");
+      });
+      lock = false;
+      startTimer();
+    }
+
+    function revealCard(card) {
+      if (lock || card.classList.contains("matched") || card.classList.contains("revealed")) return;
+      card.classList.add("revealed");
+
+      if (!firstCard) {
+        firstCard = card;
+      } else {
+        lock = true;
+        if (firstCard.dataset.solvent === card.dataset.solvent) {
+          firstCard.classList.add("matched");
+          card.classList.add("matched");
+          matchesFound++;
+          if (matchesFound === solvents.length) {
+            clearInterval(timerInterval);
+            document.getElementById("message").innerText = "🎉 All pairs matched! Well done!";
+          }
+          firstCard = null;
+          lock = false;
+        } else {
+          setTimeout(() => {
+            firstCard.classList.remove("revealed");
+            card.classList.remove("revealed");
+            firstCard = null;
+            lock = false;
+          }, 1000);
+        }
+      }
+    }
+
+    function startTimer() {
+      timeLeft = 30;
+      document.getElementById("timer").innerText = `⌛ Time: ${timeLeft}`;
+      timerInterval = setInterval(() => {
+        timeLeft--;
+        document.getElementById("timer").innerText = `⌛ Time: ${timeLeft}`;
+        if (timeLeft <= 0) {
+          clearInterval(timerInterval);
+          lock = true;
+          document.getElementById("message").innerText = "⏰ Time's up! Try again!";
+        }
+      }, 1000);
+    }
+
+    function startCountdownAndGame() {
+      let countdown = 10;
+      lock = true;
+      document.getElementById("countdown").innerText = `👀 Preview Time: ${countdown}`;
+      countdownInterval = setInterval(() => {
+        countdown--;
+        document.getElementById("countdown").innerText = `👀 Preview Time: ${countdown}`;
+        if (countdown === 0) {
+          clearInterval(countdownInterval);
+          document.getElementById("countdown").innerText = "";
+          hideCards();
+        }
+      }, 1000);
+    }
+
+    function setupGame() {
+      matchesFound = 0;
+      firstCard = null;
+      lock = true;
+      clearInterval(timerInterval);
+      clearInterval(countdownInterval);
+      document.getElementById("message").innerText = "";
+      document.getElementById("timer").innerText = "⌛ Time: 30";
+      document.getElementById("countdown").innerText = "";
+      createCards();
+    }
+
+    document.getElementById("start-button").addEventListener("click", () => {
+      setupGame();
+      document.getElementById("start-button").disabled = true;
+      startCountdownAndGame();
+    });
+
+    document.addEventListener("DOMContentLoaded", () => {
+      setupGame();
+      document.getElementById("game-board").addEventListener("click", e => {
+        const card = e.target.closest(".card");
+        if (card) revealCard(card);
+      });
+    });
+  </script>
+</body>
+</html>
